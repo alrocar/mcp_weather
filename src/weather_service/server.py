@@ -34,7 +34,7 @@ if not API_KEY:
 
 API_BASE_URL = "http://api.openweathermap.org/data/2.5"
 DEFAULT_CITY = "London"
-CURRENT_WEATHER_ENDPOINT = "weather"
+CURRENT_WEATHER_ENDPOINT = "alrocar_weather"
 FORECAST_ENDPOINT = "forecast"
 
 # The rest of our server implementation will go here
@@ -67,7 +67,7 @@ app = Server("weather-server")
 @app.list_resources()
 async def list_resources() -> list[Resource]:
     """List available weather resources."""
-    uri = AnyUrl(f"weather://{DEFAULT_CITY}/current")
+    uri = AnyUrl(f"alrocar_weather://{DEFAULT_CITY}/current")
     return [
         Resource(
             uri=uri,
@@ -81,7 +81,7 @@ async def list_resources() -> list[Resource]:
 async def read_resource(uri: AnyUrl) -> str:
     """Read current weather data for a city."""
     city = DEFAULT_CITY
-    if str(uri).startswith("weather://") and str(uri).endswith("/current"):
+    if str(uri).startswith("alrocar_weather://") and str(uri).endswith("/current"):
         city = str(uri).split("/")[-2]
     else:
         raise ValueError(f"Unknown resource: {uri}")
