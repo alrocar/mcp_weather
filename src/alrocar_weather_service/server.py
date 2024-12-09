@@ -16,7 +16,7 @@ from mcp.types import (
     TextContent,
     ImageContent,
     EmbeddedResource,
-    LoggingLevel
+    LoggingLevel,
 )
 from pydantic import AnyUrl
 
@@ -39,16 +39,13 @@ FORECAST_ENDPOINT = "forecast"
 
 # The rest of our server implementation will go here
 # Create reusable params
-http_params = {
-    "appid": API_KEY,
-    "units": "metric"
-}
+http_params = {"appid": API_KEY, "units": "metric"}
+
 
 async def fetch_weather(city: str) -> dict[str, Any]:
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            f"{API_BASE_URL}/weather",
-            params={"q": city, **http_params}
+            f"{API_BASE_URL}/weather", params={"q": city, **http_params}
         )
         response.raise_for_status()
         data = response.json()
@@ -58,11 +55,12 @@ async def fetch_weather(city: str) -> dict[str, Any]:
         "conditions": data["weather"][0]["description"],
         "humidity": data["main"]["humidity"],
         "wind_speed": data["wind"]["speed"],
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
 app = Server("weather-server")
+
 
 @app.list_resources()
 async def list_resources() -> list[Resource]:
@@ -73,9 +71,10 @@ async def list_resources() -> list[Resource]:
             uri=uri,
             name=f"Current weather in {DEFAULT_CITY}",
             mimeType="application/json",
-            description="Real-time weather data"
+            description="Real-time weather data",
         )
     ]
+
 
 @app.read_resource()
 async def read_resource(uri: AnyUrl) -> str:
@@ -92,7 +91,9 @@ async def read_resource(uri: AnyUrl) -> str:
     except httpx.HTTPError as e:
         raise RuntimeError(f"Weather API error: {str(e)}")
 
+
 # Resource implementation ...
+
 
 @app.list_tools()
 async def list_tools() -> list[Tool]:
@@ -104,24 +105,24 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "city": {
-                        "type": "string",
-                        "description": "City name"
-                    },
+                    "city": {"type": "string", "description": "City name"},
                     "days": {
                         "type": "number",
                         "description": "Number of days (1-5)",
                         "minimum": 1,
-                        "maximum": 5
-                    }
+                        "maximum": 5,
+                    },
                 },
-                "required": ["city"]
-            }
+                "required": ["city"],
+            },
         )
     ]
 
+
 @app.call_tool()
-async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
+async def call_tool(
+    name: str, arguments: Any
+) -> Sequence[TextContent | ImageContent | EmbeddedResource]:
     """Handle tool calls for weather forecasts."""
     if name != "get_forecast":
         raise ValueError(f"Unknown tool: {name}")
@@ -140,7 +141,7 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
                     "q": city,
                     "cnt": days * 8,  # API returns 3-hour intervals
                     **http_params,
-                }
+                },
             )
             response.raise_for_status()
             data = response.json()
@@ -148,29 +149,23 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent | ImageCo
         forecasts = []
         for i in range(0, len(data["list"]), 8):
             day_data = data["list"][i]
-            forecasts.append({
-                "date": day_data["dt_txt"].split()[0],
-                "temperature": day_data["main"]["temp"],
-                "conditions": day_data["weather"][0]["description"]
-            })
-
-        return [
-            TextContent(
-                type="text",
-                text=json.dumps(forecasts, indent=2)
+            forecasts.append(
+                {
+                    "date": day_data["dt_txt"].split()[0],
+                    "temperature": day_data["main"]["temp"],
+                    "conditions": day_data["weather"][0]["description"],
+                }
             )
-        ]
+
+        return [TextContent(type="text", text=json.dumps(forecasts, indent=2))]
     except requests.HTTPError as e:
         logger.error(f"Weather API error: {str(e)}")
         raise RuntimeError(f"Weather API error: {str(e)}")
+
 
 async def main():
     # Import here to avoid issues with event loops
     from mcp.server.stdio import stdio_server
 
     async with stdio_server() as (read_stream, write_stream):
-        await app.run(
-            read_stream,
-            write_stream,
-            app.create_initialization_options()
-        )
+        await app.run(read_stream, write_stream, app.create_initialization_options())
